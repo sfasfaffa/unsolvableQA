@@ -1,0 +1,390 @@
+import random
+import time
+from collections import defaultdict
+import json
+from tqdm import tqdm
+import pandas as pd
+import random
+import hashlib
+# from .template import PROMPT_TEMPLATE
+from pysat.formula import CNF
+from pysat.solvers import Solver
+PROMPT_TEMPLATE = """
+You are tasked with solving a Hamiltonian Path Puzzle.
+
+### Rules:
+A **Hamiltonian Path** in an undirected graph is a path that visits every vertex exactly once. The task is to determine whether a Hamiltonian Path exists in the given graph.
+
+The graph is represented as follows:
+- The first line contains a single integer `N`, which is the number of vertices in the graph.
+- The subsequent lines each describe an edge in the graph. Each edge is represented by two space-separated integers `u` and `v`, which indicate that there is an undirected edge between vertex `u` and vertex `v`.
+- The vertices are numbered from `0` to `N-1`.
+    
+### Response Format:
+- Please output your answer within a code block (```) as follows:
+```
+<result>
+```
+- <result> should be a list of vertex indices that form the Hamiltonian Path if it exists, for example:
+```
+[0, 2, 3, 1, 0]
+```
+Here is the puzzle:
+{question} 
+""".strip()
+
+PROMPT_TEMPLATE_ZH = """
+你的任务解决一个哈密顿路径（Hamiltonian Path）问题。
+
+### 规则：
+1. 哈密顿路径是无向图中的一条路径，该路径恰好访问每个顶点一次。任务是判断给定的图中是否存在哈密顿路径。
+
+2. 图的表示方式如下：
+- 第一行包含一个整数 `N`，表示图中的顶点数量。
+- 后续每一行描述图中的一条边。每条边由两个以空格分隔的整数 `u` 和 `v` 表示，表示在顶点 `u` 和顶点 `v` 之间存在一条无向边。
+- 顶点编号从 `0` 到 `N-1`。
+
+### 回答格式：
+- 输出格式为JSON格式:
+```json
+{{
+  "answer": "<result>"
+}}
+```
+- <result> 应该是一个包含构成哈密顿路径的顶点索引的列表，例如：[0, 2, 3, 1]。
+- 如果图中不存在哈密顿路径，<result> 应该为 "NO"。
+
+请解决以下的题目：
+{question}
+""".strip()
+PUZZLE_TYPE = "graph_puzzle"
+SOURCE_URL = "auto_generated"
+DATASET_NAME = "hamiltonian_path"
+
+_seed_offset = 0
+
+def generate_unique_seed():
+    global _seed_offset
+    seed = time.time_ns() + _seed_offset
+    _seed_offset += 1
+    return seed
+
+
+def generate_hamiltonian_path_problem(num_nodes_range=None, edge_density=None, ensure_hamiltonian=None):
+    while True:
+        problem = {}
+        if ensure_hamiltonian is None:
+            ensure_hamiltonian = random.choice([True, False])
+        seed = generate_unique_seed()
+        random.seed(seed)
+
+        if num_nodes_range is None:
+            num_nodes_range = (8, 12)  
+            
+        num_nodes = random.randint(num_nodes_range[0], num_nodes_range[1])
+        if num_nodes is None:
+            num_nodes = random.randint(20, 30)
+        if edge_density is None:
+            edge_density = random.uniform(0.6, 0.9)
+
+        assert 0 <= edge_density <= 1, "Edge density must be between 0 and 1"
+        assert num_nodes > 0, "Number of nodes must be greater than 0"
+
+        # note: ensure_hamiltonian already set above (or passed in)
+        seed = generate_unique_seed()
+        random.seed(seed)
+
+        edges = set()
+        reasons = []
+
+        max_possible_edges = num_nodes * (num_nodes - 1) // 2  
+        target_edges = int(max_possible_edges * edge_density)  
+
+        if ensure_hamiltonian:
+            nodes = list(range(num_nodes))
+            random.shuffle(nodes)
+            for i in range(num_nodes - 1):
+                u, v = sorted((nodes[i], nodes[i + 1]))
+                edges.add((u, v))
+
+            while len(edges) < target_edges + random.randint(5, 10):
+                node1, node2 = random.sample(range(num_nodes), 2)
+                u, v = sorted((node1, node2))
+                if (u, v) not in edges:
+                    edges.add((u, v))
+
+        else:
+            issues = [
+                "isolated_nodes",
+                "disconnected_subgraphs",
+                "dead_ends",
+                "sparse_graph",
+                "critical_bridge_node"
+            ]
+            selected_issue = random.choice(issues)
+
+            if selected_issue == "isolated_nodes":
+                num_isolated_nodes = random.randint(1, max(1, num_nodes // 5))
+                isolated_nodes = random.sample(range(num_nodes), num_isolated_nodes)
+                reasons.append(f"isolated_nodes: {isolated_nodes}")
+
+                non_isolated_nodes = [n for n in range(num_nodes) if n not in isolated_nodes]
+                for _ in range(len(non_isolated_nodes) * (len(non_isolated_nodes) - 1) // 4):
+                    u, v = random.sample(non_isolated_nodes, 2)
+                    edges.add((u, v))
+
+            elif selected_issue == "disconnected_subgraphs":
+                partition = num_nodes // 2
+                subgraph_1 = list(range(partition))
+                subgraph_2 = list(range(partition, num_nodes))
+
+                for _ in range(len(subgraph_1) * (len(subgraph_1) - 1) // 4):
+                    u, v = random.sample(subgraph_1, 2)
+                    edges.add((u, v))
+
+                for _ in range(len(subgraph_2) * (len(subgraph_2) - 1) // 4):
+                    u, v = random.sample(subgraph_2, 2)
+                    edges.add((u, v))
+
+                reasons.append(f"disconnected_subgraphs with edge_density={edge_density}")
+
+            elif selected_issue == "dead_ends":
+                for _ in range(target_edges // 2):
+                    u, v = random.sample(range(num_nodes), 2)
+                    edges.add((u, v))
+
+                dead_ends = []
+                for _ in range(random.randint(1, max(1, num_nodes // 10))):
+                    node = random.choice(range(num_nodes))
+                    connected_edges = [e for e in edges if node in e]
+                    if len(connected_edges) > 1:
+                        for e in connected_edges[1:]:
+                            edges.remove(e)
+                        dead_ends.append(node)
+
+                reasons.append(f"dead_ends: {dead_ends}")
+
+            elif selected_issue == "sparse_graph":
+                for _ in range(target_edges // 4):
+                    u, v = random.sample(range(num_nodes), 2)
+                    edges.add((u, v))
+
+                reasons.append(f"sparse_graph with edge_density={edge_density}")
+
+            elif selected_issue == "critical_bridge_node":
+                bridge_node = random.randint(0, num_nodes - 1)
+                subgraph_1 = list(range(num_nodes // 2))
+                subgraph_2 = list(range(num_nodes // 2, num_nodes))
+
+                for node in subgraph_1:
+                    edges.add((bridge_node, node))
+                for node in subgraph_2:
+                    edges.add((bridge_node, node))
+
+                reasons.append("critical_bridge_node")
+
+        output = [f"{num_nodes}"]
+        output.extend([f"{u} {v}" for u, v in sorted(edges)])
+        question = "\n".join(output)
+        path, verify = has_hamiltonian_path(num_nodes, edges)
+        problem["question"] = question
+        problem["answer"] = path if verify else "NO"
+        problem["reason"] = path if verify else reasons
+        return problem
+
+def has_hamiltonian_path(num_nodes, edges):
+    cnf = CNF()
+    nodes = range(num_nodes)
+    var = lambda i, j: i * num_nodes + j + 1
+    for i in nodes:
+        cnf.append([var(i, j) for j in nodes])
+        for j in nodes:
+            for k in nodes:
+                if j < k:
+                    cnf.append([-var(i, j), -var(i, k)])
+
+    for j in nodes:
+        cnf.append([var(i, j) for i in nodes])
+        for i in nodes:
+            for k in nodes:
+                if i < k:
+                    cnf.append([-var(i, j), -var(k, j)])
+
+    edge_set = set((min(u, v), max(u, v)) for u, v in edges)
+    for j in range(num_nodes - 1):
+        for i in nodes:
+            for k in nodes:
+                if i != k and (min(i, k), max(i, k)) not in edge_set:
+                    cnf.append([-var(i, j), -var(k, j + 1)])
+
+    with Solver(name='glucose3') as solver:
+        solver.append_formula(cnf)
+        if solver.solve():
+            model = solver.get_model()
+            path = [0] * num_nodes
+            for i in nodes:
+                for j in nodes:
+                    if model[var(i, j) - 1] > 0:
+                        path[j] = i
+            return path, True
+        else:
+            return None, False
+
+
+def string_to_md5(s):
+    encoded_string = s.encode('utf-8')
+    md5_hash = hashlib.md5()
+    md5_hash.update(encoded_string)
+    return md5_hash.hexdigest()
+
+def transform_problem_to_meta(problem, idx, language, split):
+    timestamp = str(time.time())  
+    id_string = f"hamiltonian_path_{idx}_{timestamp}"
+    hash_id_string = string_to_md5(id_string)
+    return{
+        "id": hash_id_string,
+        "question": problem["question"],
+        "answer": problem["answer"],
+        "rationale": problem["reason"],
+        "split": split, 
+        "type": PUZZLE_TYPE,
+        "source_url": SOURCE_URL,
+        "dataset_name": DATASET_NAME,
+        "difficulty_level":  problem["difficulty_level"],
+        "language": language
+    }
+
+difficulty_mappings = {
+    "easy": {"num_nodes_range": (10, 15), "edge_density": 0.2},
+    "medium": {"num_nodes_range": (15, 20), "edge_density": 0.3},
+    "hard": {"num_nodes_range": (20, 25), "edge_density": 0.4},
+}
+
+def generate(count=10, difficulty='medium', language='en', split="train", **kwargs):
+    prompt_template = PROMPT_TEMPLATE
+    #split = kwargs.get("split", "eval")
+    params = difficulty_mappings[difficulty]
+    force_solvable = kwargs.get('force_solvable', None)
+    # Map force_solvable -> ensure_hamiltonian param for the problem generator
+    ensure = None
+    if force_solvable is True:
+        ensure = True
+    elif force_solvable is False:
+        ensure = False
+    for i in tqdm(range(count)):
+        problem = generate_hamiltonian_path_problem(**params, ensure_hamiltonian=ensure)
+        problem["difficulty_level"] = difficulty
+        meta = transform_problem_to_meta(problem, i, language, split)
+        # normalize NO -> unsolvable
+        answer_out = meta["answer"]
+        if isinstance(answer_out, str) and answer_out.strip() == "NO":
+            answer_out = "unsolvable"
+
+        yield {
+            "prompt": prompt_template.format(question=meta["question"]),
+            "answer": answer_out,
+            "task_name": DATASET_NAME,
+            "ability": PUZZLE_TYPE,
+            "language": language,
+            "meta": json.dumps(meta),
+        }
+
+def save_to_jsonl(output_file, count, language, split, force_solvable=None):
+    """Save generated problems to a JSONL file"""
+    written = 0
+    per = count // 3
+    rem = count % 3
+    counts = {'easy': per, 'medium': per, 'hard': per}
+    if rem > 0:
+        counts['easy'] += 1
+        rem -= 1
+    if rem > 0:
+        counts['medium'] += 1
+
+    entries = []
+    with open(output_file, 'w', encoding='utf-8') as f:
+        for difficulty in ['easy', 'medium', 'hard']:
+            num = counts[difficulty]
+            # If writing an 'unsolvable' file, verify each candidate is truly unsolvable
+            if force_solvable is False:
+                written_local = 0
+                trials = 0
+                max_trials = max(1000, num * 100)
+                while written_local < num and trials < max_trials:
+                    trials += 1
+                    # generate a single candidate with ensure_hamiltonian=False behavior
+                    for item in generate(1, difficulty=difficulty, language=language, split=split, force_solvable=False):
+                        meta = json.loads(item['meta']) if isinstance(item.get('meta'), str) else item.get('meta')
+                        # verify using the internal solver
+                        try:
+                            # Reconstruct edges and node count from question
+                            q = meta['question']
+                            lines = q.strip().split('\n')
+                            n = int(lines[0])
+                            edges = [tuple(map(int, ln.split())) for ln in lines[1:] if ln.strip()]
+                            path, has = has_hamiltonian_path(n, edges)
+                        except Exception:
+                            has = True
+
+                        if not has:
+                            # build output entry in requested schema
+                            data_source = f"hamiltonian_path_unsolvable"
+                            prompt_content = item['prompt'] + "\nIf you believe the graph has no Hamiltonian Path, please output \\boxed{unsolvable} at the end.\n"
+                            entry = {
+                                "data_source": data_source,
+                                "prompt": [{"content": prompt_content, "role": "user"}],
+                                "ability": item.get('ability', PUZZLE_TYPE),
+                                "reward_model": {"ground_truth": "unsolvable", "style": "unsolvable_generated"},
+                                "extra_info": {"index": meta.get('id', f"idx_{written_local}"), "question": meta.get('question')}
+                            }
+                            f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+                            entries.append(entry)
+                            written_local += 1
+                        if written_local >= num:
+                            break
+
+                if written_local < num:
+                    print(f"Warning: only wrote {written_local}/{num} verified unsolvable {difficulty} items (trials={trials}).")
+                continue
+
+            # Normal writing path
+            for item in generate(num, difficulty=difficulty, language=language, split=split, force_solvable=force_solvable):
+                meta = json.loads(item['meta']) if isinstance(item.get('meta'), str) else item.get('meta')
+                is_unsolvable = (isinstance(item.get('answer'), str) and item.get('answer').strip() == 'unsolvable')
+                data_source = f"hamiltonian_path_unsolvable" if is_unsolvable else "hamiltonian_path"
+                prompt_content = item['prompt'] + ("\nIf you believe the graph has no Hamiltonian Path, please output \\boxed{unsolvable} at the end.\n" )
+                entry = {
+                    "data_source": data_source,
+                    "prompt": [{"content": prompt_content, "role": "user"}],
+                    "ability": item.get('ability', PUZZLE_TYPE),
+                    "reward_model": {"ground_truth": "unsolvable" if is_unsolvable else meta.get('answer'), "style": "unsolvable_generated" if is_unsolvable else "generated"},
+                    "extra_info": {"index": meta.get('id', f"idx_{random.randint(0, int(1e9))}"), "question": meta.get('question')}
+                }
+                f.write(json.dumps(entry, ensure_ascii=False) + '\n')
+                entries.append(entry)
+    # write parquet file
+    try:
+        parquet_path = output_file.rsplit('.', 1)[0] + '.parquet'
+        pd.DataFrame(entries).to_parquet(parquet_path, index=False)
+    except Exception as e:
+        print(f"Warning: failed to write parquet for {output_file}: {e}")
+
+
+if __name__ == "__main__":
+    # Normal files: prefer solvable examples
+    save_to_jsonl('data/hamiltonian_path/train_en_hamiltonian_path.jsonl', 50, language='en', split="train", force_solvable=True)
+    # Unsolvable files: explicitly request unsolvable (force_solvable=False)
+    save_to_jsonl('data/hamiltonian_path/train_en_hamiltonian_path_unsolvable.jsonl', 50, language='en', split="train", force_solvable=False)
+    save_to_jsonl('data/hamiltonian_path/test_en_hamiltonian_path.jsonl', 50, language='en', split="eval", force_solvable=True)
+    save_to_jsonl('data/hamiltonian_path/test_en_hamiltonian_path_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
+    # After generating, run dedup and enforce canonical instruction across data/
+    # try:
+    #     import sys, subprocess, os
+    #     script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tools', 'dedup_and_enforce_instruction.py'))
+    #     if os.path.exists(script):
+    #         print(f"Running dedup/enforce script: {script}")
+    #         subprocess.run([sys.executable, script], check=False)
+    #     else:
+    #         print(f"Dedup script not found at {script}, skipping post-processing.")
+    # except Exception as e:
+    #     print('Failed to run dedup/enforce script:', e)
