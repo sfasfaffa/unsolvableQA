@@ -30,29 +30,6 @@ You must provide the coordinates of the blacked-out cells.
 Here is the puzzle: 
 {question} """.strip()
 
-PROMPT_TEMPLATE_ZH = """
-你需要解决一个 Hitori 数独题目。
-
-### 规则：
-1. 该题目在一个 NxN 的网格上进行，每个格子里包含一个数字。
-2. 你的目标是“涂黑”某些格子，遵循以下规则：
-   - 每行和每列中，不能有相同的数字出现超过一次。为了消除重复，你必须涂黑一些格子。
-   - 涂黑的格子不能相邻，不能水平或垂直相连。
-   - 所有未涂黑的格子（即白格）必须是连通的，意味着你可以通过水平或垂直的方式，从一个白格到达另一个白格。
-
-### 任务：
-解决以下的 Hitori 数独题目，标出需要涂黑的格子。
-
-你需要提供涂黑格子的坐标。
-
-### 回答格式：
-- 请在代码块内(```)输出你的答案，格式为坐标(r, c)列表，例如：
-```
-[(0, 0), (1, 3), (3, 2)]
-```
-请解决以下的题目：
-{question}
-""".strip()
 
 # Board sizes used by the generator for each difficulty level. Note: these values
 # determine N (the grid dimension) and may be odd or even. Earlier prompt text
@@ -237,7 +214,7 @@ def generate_unique_hitori_problem(language, difficulty, max_tries=1000):
 def transform_problem_to_meta(problem, idx, language, split):
     timestamp = str(time.time())
     random_suffix = random.randint(0, int(1e6))
-    id_string = f"binario_{idx}_{timestamp}_{random_suffix}"
+    id_string = f"hitori_{idx}_{timestamp}_{random_suffix}"
     hash_id_string = string_to_md5(id_string)
     return {
         "id": hash_id_string,
@@ -339,9 +316,6 @@ def save_to_jsonl(output_file, count, language, split, force_solvable=None):
         print(f"Warning: failed to write parquet for {output_file}: {e}")
 
 if __name__ == "__main__":
-    #save_to_jsonl("train_en.jsonl", 20000, language="en", split="train")
-    save_to_jsonl("train_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
-    save_to_jsonl('train_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
     save_to_jsonl("test_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
     save_to_jsonl('test_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
 

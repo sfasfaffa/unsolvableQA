@@ -33,30 +33,6 @@ Here is the puzzle:
 {question} 
 """.strip()
 
-PROMPT_TEMPLATE_ZH = """
-你的任务是解决一个哈密顿回路（Hamiltonian Cycle）问题。
-
-### 规则：
-1. 哈密顿回路是无向图中的一个回路，该回路恰好访问每个顶点一次，并返回到起始顶点。任务是判断给定的图中是否存在哈密顿回路。
-
-2. 图的表示方式如下：
-- 第一行包含一个整数 `N`，表示图中的顶点数量。
-- 后续每一行描述图中的一条边。每条边由两个以空格分隔的整数 `u` 和 `v` 表示，表示在顶点 `u` 和顶点 `v` 之间存在一条无向边。
-- 顶点编号从 `0` 到 `N-1`。
-
-### 回答格式：
-- 输出格式为 JSON 格式：
-```json
-{{
-  "answer": "<result>"
-}}
-```
-- 如果哈密顿回路存在，<result> 应该是一个数值列表，表示形成回路的顶点顺序，例如 [0, 2, 3, 1, 0]（其中最后一个顶点与第一个第一个顶点相同形成回路）。
-- 如果不存在哈密顿回路，<result> 应该是 "NO"。
-
-请解决以下的题目：
-{question}
-""".strip()
 
 PUZZLE_TYPE = "graph_puzzle"
 SOURCE_URL = "auto_generated"
@@ -437,9 +413,5 @@ def save_to_jsonl(output_file, count, language, split, force_solvable=None):
         print(f"Warning: failed to write parquet for {output_file}: {e}")
 
 if __name__ == "__main__":
-    # Normal files: prefer solvable examples
-    save_to_jsonl('train_en_hamiltonian_cycle.jsonl', 50, language='en', split="train", force_solvable=True)
-    # Unsolvable files: explicitly request unsolvable (force_solvable=False)
-    save_to_jsonl('train_en_hamiltonian_cycle_unsolvable.jsonl', 50, language='en', split="train", force_solvable=False)
     save_to_jsonl('test_en_hamiltonian_cycle.jsonl', 50, language='en', split="eval", force_solvable=True)
     save_to_jsonl('test_en_hamiltonian_cycle_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)

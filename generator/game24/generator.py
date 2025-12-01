@@ -110,7 +110,7 @@ def generate(count=100, difficulty='medium', language='en', split="train", force
     for i in tqdm(range(count)):
         # Sample numbers and optionally enforce solvability/unsolvability
         attempts = 0
-        max_attempts = 2000
+        max_attempts = 3000
         numbers = generate_numbers(num_nums)
         answer = can_form_24(numbers, language)
 
@@ -249,13 +249,6 @@ def save_to_jsonl(of1, of2, count, lange='en', force_solvable=None):
         df.to_parquet(parquet_path, index=False)
     except Exception as e:
         print(f"Warning: failed to write parquet for {of1}: {e}")
-# Call functions to generate and save
-#save_to_jsonl('training/game24/en/train.jsonl', 'raw/game24/en/train.jsonl', 24000, 'en')
-#save_to_jsonl('training/game24/zh/train.jsonl', 'raw/game24/zh/train.jsonl',24000, 'zh')
 if __name__ == "__main__":
-    # Normal files: default (force_solvable=None or True to prefer solvable examples)
     save_to_jsonl('test_en_game24.jsonl', 'test_en_game24_raw.jsonl', 50, 'en', force_solvable=True)
-    # Unsolvable files: request force_solvable=False so generator tries to produce unsolvable instances
     save_to_jsonl('test_en_game24_unsolvable.jsonl', 'test_en_game24_raw_unsolvable.jsonl', 50, 'en', force_solvable=False)
-    save_to_jsonl('train_en_game24.jsonl', 'train_en_game24_raw.jsonl',50, 'en', force_solvable=True)
-    save_to_jsonl('train_en_game24_unsolvable.jsonl', 'train_en_game24_raw_unsolvable.jsonl',50, 'en', force_solvable=False)
