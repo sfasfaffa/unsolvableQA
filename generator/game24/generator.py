@@ -254,21 +254,8 @@ def save_to_jsonl(of1, of2, count, lange='en', force_solvable=None):
 #save_to_jsonl('training/game24/zh/train.jsonl', 'raw/game24/zh/train.jsonl',24000, 'zh')
 if __name__ == "__main__":
     # Normal files: default (force_solvable=None or True to prefer solvable examples)
-    save_to_jsonl('data/game24/game24_en_test.jsonl', 'data/game24/game24_en_test_raw.jsonl', 50, 'en', force_solvable=True)
+    save_to_jsonl('test_en_game24.jsonl', 'test_en_game24_raw.jsonl', 50, 'en', force_solvable=True)
     # Unsolvable files: request force_solvable=False so generator tries to produce unsolvable instances
-    save_to_jsonl('data/game24/game24_en_test_unsolvable.jsonl', 'data/game24/game24_en_test_raw_unsolvable.jsonl', 50, 'en', force_solvable=False)
-    save_to_jsonl('data/game24/game24_en_train.jsonl', 'data/game24/game24_en_train_raw.jsonl',50, 'en', force_solvable=True)
-    save_to_jsonl('data/game24/game24_en_train_unsolvable.jsonl', 'data/game24/game24_en_train_raw_unsolvable.jsonl',50, 'en', force_solvable=False)
-#save_to_jsonl('eval/game24/en/test.jsonl', 'raw/game24/en/test.jsonl', 1500, 'en')
-#save_to_jsonl('eval/game24/zh/test.jsonl', 'raw/game24/zh/test.jsonl',1500, 'zh')
-    # After generating, run dedup and enforce canonical instruction across data/
-    # try:
-    #     import sys, subprocess, os
-    #     script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tools', 'dedup_and_enforce_instruction.py'))
-    #     if os.path.exists(script):
-    #         print(f"Running dedup/enforce script: {script}")
-    #         subprocess.run([sys.executable, script], check=False)
-    #     else:
-    #         print(f"Dedup script not found at {script}, skipping post-processing.")
-    # except Exception as e:
-    #     print('Failed to run dedup/enforce script:', e)
+    save_to_jsonl('test_en_game24_unsolvable.jsonl', 'test_en_game24_raw_unsolvable.jsonl', 50, 'en', force_solvable=False)
+    save_to_jsonl('train_en_game24.jsonl', 'train_en_game24_raw.jsonl',50, 'en', force_solvable=True)
+    save_to_jsonl('train_en_game24_unsolvable.jsonl', 'train_en_game24_raw_unsolvable.jsonl',50, 'en', force_solvable=False)

@@ -340,20 +340,8 @@ def save_to_jsonl(output_file, count, language, split, force_solvable=None):
 
 if __name__ == "__main__":
     #save_to_jsonl("train_en.jsonl", 20000, language="en", split="train")
-    save_to_jsonl("data/hitori/train_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
-    save_to_jsonl('data/hitori/train_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
-    save_to_jsonl("data/hitori/test_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
-    save_to_jsonl('data/hitori/test_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
-    #save_to_jsonl("eval_zh.jsonl", 100, language="zh", split="eval")
-    #save_to_jsonl("test_zh.jsonl", 1500, language="zh", split="eval")
-    # After generating, run dedup and enforce canonical instruction across data/
-    # try:
-    #     import sys, subprocess, os
-    #     script = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', '..', 'tools', 'dedup_and_enforce_instruction.py'))
-    #     if os.path.exists(script):
-    #         print(f"Running dedup/enforce script: {script}")
-    #         subprocess.run([sys.executable, script], check=False)
-    #     else:
-    #         print(f"Dedup script not found at {script}, skipping post-processing.")
-    # except Exception as e:
-    #     print('Failed to run dedup/enforce script:', e)
+    save_to_jsonl("train_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
+    save_to_jsonl('train_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
+    save_to_jsonl("test_en_hitori.jsonl", 50, language="en", split="eval", force_solvable=True)
+    save_to_jsonl('test_en_hitori_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
+
