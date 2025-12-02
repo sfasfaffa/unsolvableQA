@@ -348,8 +348,5 @@ def save_to_jsonl(output_file, count, language, split, force_solvable=None):
 
 if __name__ == "__main__":
     # Normal files: prefer solvable examples
-    save_to_jsonl('train_en_hamiltonian_path.jsonl', 50, language='en', split="train", force_solvable=True)
-
-    save_to_jsonl('train_en_hamiltonian_path_unsolvable.jsonl', 50, language='en', split="train", force_solvable=False)
     save_to_jsonl('test_en_hamiltonian_path.jsonl', 50, language='en', split="eval", force_solvable=True)
     save_to_jsonl('test_en_hamiltonian_path_unsolvable.jsonl', 50, language='en', split="eval", force_solvable=False)
