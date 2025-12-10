@@ -4,7 +4,7 @@ Ensuring LLM reliability requires not only solving complex problems but also rec
 
 The data generation code for AIME and Maze is currently being prepared. We have provided the unsolvable data generation code for Game24, Hamiltonian Cycle, Hamiltonian Path, and Hitori.
 
-<!-- 如果您认为我们的工作有价值，请cite -->
+
 If you find our work inspiring or helpful, please cite:
 
 ```bibtex
